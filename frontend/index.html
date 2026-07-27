@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, intial-scale=1.0">
+        <title>Contact Management Application</title>
+        <link rel="stylesheet" href="style.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    </head>
+    <body>
+        <div class="app-container">
+            <header class="app-header">
+                <div>
+                    <h2>Contact Manager</h2>
+                    <p class="subtitle">
+                        Collaberative Network Directory
+                    </p>
+                </div> 
+            <button id="add-contact-btn" class="btn btn-primary">
+                <i class="fa-solid fa-plus"></i>Add Contact
+            </button>
+            </header>
+
+            <div class="search-wrapper">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" id="search-input" placeholder="Search by name, email or phone number...">
+            </div>
+            <main id="contacts-grid" class="contacts-grid" >
+            </main>
+        </div>
+
+        <div id="contact-modal" class="modal-backdrop hidden">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3 id="modal-title">Add New Contacts</h3>
+                    <button class="close-btn" id="close-modal-btn">&times;</button>
+                </div>
+                <form id="contact-form" novalidate>
+                    <input type="hidden" id="contact-id">
+                <!--for Name-->
+                    <div class="form-group">
+                        <label for="contact-name">Full Name *</label>
+                        <div class="input-wrapper">
+                            <i class="fa-solid fa-user"></i>
+                            <input type="text" id="contact-name" placeholder="Name" required>
+                        </div>
+                        <span class="error-msg" id="name-error"></span>
+                    </div>
+                <!--for phone number-->
+                <div class="form-group">
+                    <label for="contact-phone">Phone Number*</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-phone"></i>
+                        <input type="text" id="contact-phone" placeholder="+1 234 567 890" required>
+                    </div>
+                    <span class="error-msg" id="phone-error"></span>
+                </div>    
+                <!--for email-->
+                <div class="form-group">
+                    <label for="contact-email">Email Address*</label>
+                    <div  class="input-wrapper">
+                        <i class="fa-solid fa-envelope"></i>
+                        <input type="text" id="contact-email" placeholder="abc@gmail.com" required>
+                    </div>
+                    <span class="error-msg" id="email-error"></span>
+                </div>
+                <!--for company-->
+                <div class="form-group">
+                    <label for="contact-company">Company(optional)</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-briefcase"></i>
+                        <input type="text" id="contact-company" placeholder="TCS">
+                    </div>
+                </div>
+                <!--for profile image-->
+                <div class="form-group">
+                    <label for="contact-image">Profile Image URL (optional)</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-image"></i>
+                        <input type="text" id="contact-image" placeholder="https://example.com/photo.jpg">
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" id="cancel-modal-btn" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" id="save-contact-btn" class="btn btn-primary">Save Contact</button>
+                </div>
+                </form>
+            </div>
+        </div>
+                <script type="module" src="app.js"></script>
+    </body>
+</html>
