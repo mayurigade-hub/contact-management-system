@@ -110,6 +110,14 @@ function validateForm(formData) {
         isValid = false;
     }
     
+    // 4. Duplicate email check
+    const id = document.getElementById('contact-id').value;
+    const isDuplicate = contacts.some(c => c.email.toLowerCase() === formData.email.toLowerCase() && c._id !== id);
+    if (isDuplicate) {
+        showError('email-error', 'This email address is already in use.');
+        isValid = false;
+    }
+    
     return isValid;
 }
 
