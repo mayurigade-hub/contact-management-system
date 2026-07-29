@@ -13,7 +13,7 @@
 [![Express](https://img.shields.io/badge/Express-REST%20API-000000?style=flat-square&logo=express&logoColor=white)](https://expressjs.com/)
 [![Firebase](https://img.shields.io/badge/Firebase-Firestore-FFCA28?style=flat-square&logo=firebase&logoColor=black)](https://firebase.google.com/)
 
-[Getting Started](#getting-started) · [Project Structure](#project-structure) · [Features](#features) · [Environment Setup](#environment-setup)
+[Getting Started](#getting-started) · [Project Structure](#project-structure) · [Features](#features) · [Environment Setup](#environment-setup) · [Live Website](#live-website)
 
 </div>
 
@@ -146,6 +146,13 @@ PORT=5000
 | `frontend/style.css` | Colors, spacing, responsive breakpoints, card layout |
 | `frontend/app.js` | Contact logic, category filters, photo upload, toast messages |
 | `backend/server.js` | API routes, Firestore collection name, validation rules |
+
+---
+
+<a name = "live-website"></a> 
+
+Live website- 
+
 
 ---
 
