@@ -2,3 +2,7 @@ backend/node_modules/
 frontend/node_modules/
 
 backend/.env
+
+# Firebase credentials — NEVER commit this!
+backend/config/serviceAccountKey.json
+**/serviceAccountKey.json
