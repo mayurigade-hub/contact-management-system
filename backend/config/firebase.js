@@ -9,7 +9,13 @@ try {
   const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH 
     || path.join(__dirname, 'serviceAccountKey.json');
 
-  if (fs.existsSync(serviceAccountPath)) {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+    initializeApp({
+      credential: cert(serviceAccount)
+    });
+    console.log('✅ Firebase initialized using FIREBASE_SERVICE_ACCOUNT_JSON env var');
+  } else if (fs.existsSync(serviceAccountPath)) {
     const serviceAccount = require(serviceAccountPath);
     initializeApp({
       credential: cert(serviceAccount)
