@@ -1,15 +1,125 @@
 let contacts = [];
 const API_URL = '/api/contacts';
+let activeTab = 'all';
+let activeSearch = '';
+let currentImageDataUrl = '';
+
+function filterAndRender() {
+    let filtered = contacts;
+
+    // Filter by active tab
+    if (activeTab === 'favorites') {
+        filtered = filtered.filter(c => c.isFavorite);
+    } else if (activeTab !== 'all') {
+        filtered = filtered.filter(c => c.category === activeTab);
+    }
+
+    // Filter by search query
+    if (activeSearch.trim()) {
+        const q = activeSearch.toLowerCase();
+        filtered = filtered.filter(c =>
+            c.fullName.toLowerCase().includes(q) ||
+            c.email.toLowerCase().includes(q) ||
+            c.phone.includes(q)
+        );
+    }
+
+    renderContacts(filtered);
+}
+
+function showToast(message, type = 'success', duration = 3200) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+
+    let iconClass = 'fa-circle-check';
+    if (type === 'error') iconClass = 'fa-circle-xmark';
+    if (type === 'info') iconClass = 'fa-circle-info';
+
+    toast.innerHTML = `
+        <i class="fa-solid ${iconClass} toast-icon"></i>
+        <span class="toast-message">${message}</span>
+        <button class="toast-close">&times;</button>
+    `;
+
+    container.appendChild(toast);
+
+    const dismissTimeout = setTimeout(() => removeToast(toast), duration);
+
+    toast.querySelector('.toast-close').addEventListener('click', () => {
+        clearTimeout(dismissTimeout);
+        removeToast(toast);
+    });
+}
+
+function removeToast(toast) {
+    toast.classList.add('toast-hiding');
+    toast.addEventListener('animationend', () => toast.remove());
+}
+
+async function parseErrorResponse(response, defaultMsg) {
+    try {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            const data = await response.json();
+            return data.message || defaultMsg;
+        }
+        const text = await response.text();
+        return text || defaultMsg;
+    } catch {
+        return defaultMsg;
+    }
+}
+
+function compressAndResizeImage(file, callback) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const maxDim = 300;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+                if (width > maxDim) {
+                    height *= maxDim / width;
+                    width = maxDim;
+                }
+            } else {
+                if (height > maxDim) {
+                    width *= maxDim / height;
+                    height = maxDim;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+            callback(compressedDataUrl);
+        };
+        img.onerror = function() {
+            callback(e.target.result);
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
 
 async function fetchContacts() {
     try {
         const response = await fetch(API_URL);
         if (!response.ok) throw new Error('Failed to fetch contacts');
         contacts = await response.json();
-        renderContacts(contacts);
+        filterAndRender();
     } catch (error) {
         console.error('Error fetching contacts:', error);
-        alert('Error loading contacts');
+        showToast('Error loading contacts', 'error');
     }
 }
 
@@ -21,7 +131,9 @@ async function addContact(formData) {
             email: formData.email,
             phone: formData.phone,
             company: formData.company,
-            profileImage: formData.imageUrl
+            profileImage: formData.imageUrl,
+            isFavorite: Boolean(formData.isFavorite),
+            category: formData.category || ''
         };
 
         const response = await fetch(API_URL, {
@@ -31,14 +143,15 @@ async function addContact(formData) {
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to add contact');
+            const errorMsg = await parseErrorResponse(response, 'Failed to add contact');
+            throw new Error(errorMsg);
         }
 
+        showToast('Contact added successfully!', 'success');
         await fetchContacts(); // Refresh list
     } catch (error) {
         console.error('Error adding contact:', error);
-        alert(`Error: ${error.message}`);
+        showToast(`Error: ${error.message}`, 'error');
     }
 }
 
@@ -49,7 +162,9 @@ async function updateContact(id, formData) {
             email: formData.email,
             phone: formData.phone,
             company: formData.company,
-            profileImage: formData.imageUrl
+            profileImage: formData.imageUrl,
+            isFavorite: Boolean(formData.isFavorite),
+            category: formData.category || ''
         };
 
         const response = await fetch(`${API_URL}/${id}`, {
@@ -59,14 +174,15 @@ async function updateContact(id, formData) {
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to update contact');
+            const errorMsg = await parseErrorResponse(response, 'Failed to update contact');
+            throw new Error(errorMsg);
         }
 
+        showToast('Contact updated successfully!', 'success');
         await fetchContacts(); // Refresh list
     } catch (error) {
         console.error('Error updating contact:', error);
-        alert(`Error: ${error.message}`);
+        showToast(`Error: ${error.message}`, 'error');
     }
 }
 
@@ -78,10 +194,11 @@ async function deleteContactFromAPI(id) {
 
         if (!response.ok) throw new Error('Failed to delete contact');
         
+        showToast('Contact deleted successfully', 'info');
         await fetchContacts(); // Refresh list
     } catch (error) {
         console.error('Error deleting contact:', error);
-        alert('Error deleting contact');
+        showToast('Error deleting contact', 'error');
     }
 }
 
@@ -140,17 +257,29 @@ function renderContacts(contactsToRender) {
         const imageUrl = contact.profileImage;
         const id = contact._id;
 
-        const avatarLayout = imageUrl 
-            ? `<img src="${imageUrl}" class="avatar" alt="${name}">`
+        const avatarLayout = (imageUrl && imageUrl.trim()) 
+            ? `<img src="${imageUrl.trim()}" class="avatar" alt="${name}" onerror="this.onerror=null; this.outerHTML='<div class=\\'avatar\\'>${name.charAt(0).toUpperCase()}</div>';">`
             : `<div class="avatar">${name.charAt(0).toUpperCase()}</div>`;
+
+        const starBadge = contact.isFavorite 
+            ? `<i class="fa-solid fa-star favorite-star" title="Favorite Contact"></i>` 
+            : '';
+
+        const categoryColors = { Work: 'cat-work', Family: 'cat-family', Friends: 'cat-friends', Other: 'cat-other' };
+        const catBadge = contact.category 
+            ? `<span class="category-badge ${categoryColors[contact.category] || 'cat-other'}">${contact.category}</span>` 
+            : '';
 
         card.innerHTML = `
             <div>
-                <div class="contact-info">
-                    ${avatarLayout}
-                    <div class="details">
-                        <h4>${name}</h4>
-                        <p>${contact.company ? `<i class="fa-solid fa-briefcase"></i> ${contact.company}` : ''}</p>
+                <div class="contact-card-header">
+                    <div class="contact-info">
+                        ${avatarLayout}
+                        <div class="details">
+                            <h4>${name} ${starBadge}</h4>
+                            <p>${contact.company ? `<i class="fa-solid fa-briefcase"></i> ${contact.company}` : ''}</p>
+                            ${catBadge}
+                        </div>
                     </div>
                 </div>
                 <div class="contact-meta">
@@ -180,16 +309,63 @@ function handleEdit(id) {
     document.getElementById('contact-email').value = target.email;
     document.getElementById('contact-phone').value = target.phone;
     document.getElementById('contact-company').value = target.company || '';
-    document.getElementById('contact-image').value = target.profileImage || '';
+    const imgUrl = target.profileImage || '';
+    currentImageDataUrl = imgUrl;
+    document.getElementById('contact-image').value = imgUrl.startsWith('data:') ? '' : imgUrl;
+    document.getElementById('contact-file').value = '';
+    document.getElementById('contact-favorite').checked = Boolean(target.isFavorite);
+    document.getElementById('contact-category').value = target.category || '';
+    
+    const previewWrapper = document.getElementById('image-preview-wrapper');
+    const previewImg = document.getElementById('image-preview');
+    const previewLabel = document.getElementById('preview-label');
+
+    if (imgUrl.trim()) {
+        previewImg.src = imgUrl.trim();
+        previewLabel.innerText = imgUrl.startsWith('data:') ? 'Uploaded Photo' : 'Image URL';
+        previewWrapper.classList.remove('hidden');
+    } else {
+        previewWrapper.classList.add('hidden');
+    }
     
     clearErrors();
     document.getElementById('contact-modal').classList.remove('hidden');
 }
 
 function handleDelete(id) {
-    if (confirm("Are you sure you want to permanently delete this contact?")) {
+    showDeleteConfirm(id);
+}
+
+function showDeleteConfirm(id) {
+    // Remove any existing confirm modal
+    const existing = document.getElementById('delete-confirm-modal');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'delete-confirm-modal';
+    overlay.className = 'delete-confirm-backdrop';
+    overlay.innerHTML = `
+        <div class="delete-confirm-card">
+            <div class="delete-confirm-icon">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 class="delete-confirm-title">Delete Contact?</h3>
+            <p class="delete-confirm-msg">This action is permanent and cannot be undone.</p>
+            <div class="delete-confirm-actions">
+                <button id="delete-cancel-btn" class="btn btn-secondary">Cancel</button>
+                <button id="delete-confirm-btn" class="btn btn-danger">Yes, Delete</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    document.getElementById('delete-cancel-btn').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    document.getElementById('delete-confirm-btn').addEventListener('click', () => {
+        overlay.remove();
         deleteContactFromAPI(id);
-    }
+    });
 }
 
 function showError(elementId, message) {
@@ -212,6 +388,12 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('modal-title').innerText = "Add New Contact";
         form.reset();
         document.getElementById('contact-id').value = '';
+        document.getElementById('contact-favorite').checked = false;
+        document.getElementById('contact-category').value = '';
+        document.getElementById('contact-file').value = '';
+        document.getElementById('contact-image').value = '';
+        currentImageDataUrl = '';
+        document.getElementById('image-preview-wrapper').classList.add('hidden');
         clearErrors();
         modal.classList.remove('hidden');
     });
@@ -221,13 +403,79 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cancel-modal-btn').addEventListener('click', closeModal);
 
     document.getElementById('search-input').addEventListener('input', (e) => {
-        const query = e.target.value.toLowerCase();
-        const filtered = contacts.filter(c => 
-            c.fullName.toLowerCase().includes(query) ||
-            c.email.toLowerCase().includes(query) ||
-            c.phone.includes(query)
-        );
-        renderContacts(filtered);
+        activeSearch = e.target.value;
+        filterAndRender();
+    });
+
+    // Image Mode Toggle Buttons
+    const fileBtn = document.getElementById('mode-file-btn');
+    const urlBtn = document.getElementById('mode-url-btn');
+    const fileWrapper = document.getElementById('file-input-wrapper');
+    const urlWrapper = document.getElementById('url-input-wrapper');
+    const fileInput = document.getElementById('contact-file');
+    const imageInput = document.getElementById('contact-image');
+    const previewWrapper = document.getElementById('image-preview-wrapper');
+    const previewImg = document.getElementById('image-preview');
+    const previewLabel = document.getElementById('preview-label');
+    const removeImgBtn = document.getElementById('remove-image-btn');
+
+    fileBtn.addEventListener('click', () => {
+        fileBtn.classList.add('active');
+        urlBtn.classList.remove('active');
+        fileWrapper.classList.remove('hidden');
+        urlWrapper.classList.add('hidden');
+    });
+
+    urlBtn.addEventListener('click', () => {
+        urlBtn.classList.add('active');
+        fileBtn.classList.remove('active');
+        urlWrapper.classList.remove('hidden');
+        fileWrapper.classList.add('hidden');
+    });
+
+    // File Input Listener (Read device photo, compress & resize)
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            compressAndResizeImage(file, function(compressedUrl) {
+                currentImageDataUrl = compressedUrl;
+                previewImg.src = currentImageDataUrl;
+                previewLabel.innerText = file.name;
+                previewWrapper.classList.remove('hidden');
+            });
+        }
+    });
+
+    // URL Input Listener
+    imageInput.addEventListener('input', () => {
+        const url = imageInput.value.trim();
+        if (url) {
+            currentImageDataUrl = url;
+            previewImg.src = url;
+            previewLabel.innerText = 'Live Image Preview';
+            previewWrapper.classList.remove('hidden');
+        } else {
+            currentImageDataUrl = '';
+            previewWrapper.classList.add('hidden');
+        }
+    });
+
+    // Remove Image Button Listener
+    removeImgBtn.addEventListener('click', () => {
+        currentImageDataUrl = '';
+        fileInput.value = '';
+        imageInput.value = '';
+        previewWrapper.classList.add('hidden');
+    });
+
+    // Filter tab clicks
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            activeTab = tab.dataset.filter;
+            filterAndRender();
+        });
     });
 
     form.addEventListener('submit', async (e) => {
@@ -239,7 +487,9 @@ document.addEventListener('DOMContentLoaded', () => {
             email: document.getElementById('contact-email').value,
             phone: document.getElementById('contact-phone').value,
             company: document.getElementById('contact-company').value,
-            imageUrl: document.getElementById('contact-image').value
+            imageUrl: currentImageDataUrl || document.getElementById('contact-image').value.trim(),
+            isFavorite: document.getElementById('contact-favorite').checked,
+            category: document.getElementById('contact-category').value
         };
 
         if (!validateForm(formData)) return;

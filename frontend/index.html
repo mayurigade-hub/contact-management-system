@@ -2,7 +2,7 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, intial-scale=1.0">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Contact Management Application</title>
         <link rel="stylesheet" href="style.css">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -11,7 +11,7 @@
         <div class="app-container">
             <header class="app-header">
                 <div>
-                    <h2>Contact Manager</h2>
+                    <h1>Contact Manager</h1>
                     <p class="subtitle">
                         Collaberative Network Directory
                     </p>
@@ -25,7 +25,18 @@
                 <i class="fa-solid fa-magnifying-glass search-icon"></i>
                 <input type="text" id="search-input" placeholder="Search by name, email or phone number...">
             </div>
-            <main id="contacts-grid" class="contacts-grid" >
+
+            <!-- Section Filter Tabs -->
+            <div class="filter-tabs">
+                <button class="filter-tab active" data-filter="all"><i class="fa-solid fa-address-book"></i> All</button>
+                <button class="filter-tab" data-filter="favorites"><i class="fa-solid fa-star"></i> Favorites</button>
+                <button class="filter-tab" data-filter="Work"><i class="fa-solid fa-briefcase"></i> Work</button>
+                <button class="filter-tab" data-filter="Family"><i class="fa-solid fa-house-user"></i> Family</button>
+                <button class="filter-tab" data-filter="Friends"><i class="fa-solid fa-user-group"></i> Friends</button>
+                <button class="filter-tab" data-filter="Other"><i class="fa-solid fa-tag"></i> Other</button>
+            </div>
+
+            <main id="contacts-grid" class="contacts-grid">
             </main>
         </div>
 
@@ -37,6 +48,13 @@
                 </div>
                 <form id="contact-form" novalidate>
                     <input type="hidden" id="contact-id">
+                    <!--for Favorite-->
+                    <div class="form-group checkbox-group">
+                        <label class="checkbox-label" for="contact-favorite">
+                            <input type="checkbox" id="contact-favorite">
+                            <span><i class="fa-solid fa-star star-icon"></i> Add to Favorites</span>
+                        </label>
+                    </div>
                 <!--for Name-->
                     <div class="form-group">
                         <label for="contact-name">Full Name *</label>
@@ -72,12 +90,58 @@
                         <input type="text" id="contact-company" placeholder="TCS">
                     </div>
                 </div>
+                <!--for category-->
+                <div class="form-group">
+                    <label for="contact-category">Tag / Category</label>
+                    <div class="input-wrapper select-wrapper">
+                        <i class="fa-solid fa-tag"></i>
+                        <select id="contact-category">
+                            <option value="">None</option>
+                            <option value="Work">Work</option>
+                            <option value="Family">Family</option>
+                            <option value="Friends">Friends</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
                 <!--for profile image-->
                 <div class="form-group">
-                    <label for="contact-image">Profile Image URL (optional)</label>
-                    <div class="input-wrapper">
+                    <label>Profile Photo (optional)</label>
+
+                    <!-- Mode Toggle -->
+                    <div class="image-mode-toggle">
+                        <button type="button" class="img-mode-btn active" id="mode-file-btn">
+                            <i class="fa-solid fa-upload"></i> Upload File
+                        </button>
+                        <button type="button" class="img-mode-btn" id="mode-url-btn">
+                            <i class="fa-solid fa-link"></i> Paste URL
+                        </button>
+                    </div>
+
+                    <!-- File Upload Drop Zone -->
+                    <div id="file-input-wrapper" class="upload-drop-zone" id="upload-drop-zone">
+                        <input type="file" id="contact-file" accept="image/*" class="file-input-hidden">
+                        <i class="fa-solid fa-cloud-arrow-up upload-zone-icon"></i>
+                        <p class="upload-zone-text">Click to choose a photo</p>
+                        <p class="upload-zone-hint">JPG, PNG, WebP — auto-compressed</p>
+                    </div>
+
+                    <!-- URL Input -->
+                    <div id="url-input-wrapper" class="input-wrapper hidden">
                         <i class="fa-solid fa-image"></i>
-                        <input type="text" id="contact-image" placeholder="https://example.com/photo.jpg">
+                        <input type="url" id="contact-image" placeholder="https://example.com/photo.jpg">
+                    </div>
+
+                    <!-- Preview -->
+                    <div id="image-preview-wrapper" class="image-preview-wrapper hidden">
+                        <img id="image-preview" src="" alt="Preview">
+                        <div class="preview-info">
+                            <span id="preview-label">Image Preview</span>
+                            <small class="preview-sub">Ready to save</small>
+                        </div>
+                        <button type="button" id="remove-image-btn" class="remove-img-btn" title="Remove Image">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
                     </div>
                 </div>
 
@@ -88,6 +152,7 @@
                 </form>
             </div>
         </div>
-                <script type="module" src="app.js"></script>
+        <div id="toast-container" class="toast-container"></div>
+        <script type="module" src="app.js"></script>
     </body>
 </html>
