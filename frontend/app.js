@@ -1,16 +1,88 @@
-
 let contacts = [];
+const API_URL = '/api/contacts';
 
-
-function getContacts() {
-    const data = localStorage.getItem('contacts');
-    return data ? JSON.parse(data) : [];
+async function fetchContacts() {
+    try {
+        const response = await fetch(API_URL);
+        if (!response.ok) throw new Error('Failed to fetch contacts');
+        contacts = await response.json();
+        renderContacts(contacts);
+    } catch (error) {
+        console.error('Error fetching contacts:', error);
+        alert('Error loading contacts');
+    }
 }
 
-function saveContacts(updatedContacts) {
-    contacts = updatedContacts;
-    localStorage.setItem('contacts', JSON.stringify(contacts));
-    renderContacts(contacts);
+async function addContact(formData) {
+    try {
+        // Map frontend fields to backend schema fields
+        const payload = {
+            fullName: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+            company: formData.company,
+            profileImage: formData.imageUrl
+        };
+
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to add contact');
+        }
+
+        await fetchContacts(); // Refresh list
+    } catch (error) {
+        console.error('Error adding contact:', error);
+        alert(`Error: ${error.message}`);
+    }
+}
+
+async function updateContact(id, formData) {
+    try {
+        const payload = {
+            fullName: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+            company: formData.company,
+            profileImage: formData.imageUrl
+        };
+
+        const response = await fetch(`${API_URL}/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to update contact');
+        }
+
+        await fetchContacts(); // Refresh list
+    } catch (error) {
+        console.error('Error updating contact:', error);
+        alert(`Error: ${error.message}`);
+    }
+}
+
+async function deleteContactFromAPI(id) {
+    try {
+        const response = await fetch(`${API_URL}/${id}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) throw new Error('Failed to delete contact');
+        
+        await fetchContacts(); // Refresh list
+    } catch (error) {
+        console.error('Error deleting contact:', error);
+        alert('Error deleting contact');
+    }
 }
 
 
@@ -20,7 +92,7 @@ function validateForm(formData) {
 
     // 1. Name validation
     if (!formData.name.trim()) {
-        showError('name-error', 'Name field is explicitly required.');
+        showError('name-error', 'Name field is required.');
         isValid = false;
     }
 
@@ -31,20 +103,13 @@ function validateForm(formData) {
         isValid = false;
     }
 
-    // 3. Unique email check[cite: 1]
-    const duplicate = contacts.some(c => c.email.toLowerCase() === formData.email.toLowerCase() && c.id !== formData.id);
-    if (duplicate) {
-        showError('email-error', 'This email address is already in use.');
-        isValid = false;
-    }
-
-    // 4. Phone validation
+    // 3. Phone validation
     const phoneRegex = /^\+?[0-9\s\-]{7,15}$/;
     if (!phoneRegex.test(formData.phone)) {
-        showError('phone-error', 'Please provide a valid phone number string.');
+        showError('phone-error', 'Please provide a valid phone number.');
         isValid = false;
     }
-
+    
     return isValid;
 }
 
@@ -54,7 +119,7 @@ function renderContacts(contactsToRender) {
     grid.innerHTML = '';
 
     if (contactsToRender.length === 0) {
-        grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: #94a3b8;">No contacts match your query.</div>`;
+        grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: #94a3b8;">No contacts found.</div>`;
         return;
     }
 
@@ -62,16 +127,21 @@ function renderContacts(contactsToRender) {
         const card = document.createElement('div');
         card.className = 'contact-card';
         
-        const avatarLayout = contact.imageUrl 
-            ? `<img src="${contact.imageUrl}" class="avatar" alt="${contact.name}">`
-            : `<div class="avatar">${contact.name.charAt(0).toUpperCase()}</div>`;
+        // Map backend schema back to frontend fields for display
+        const name = contact.fullName;
+        const imageUrl = contact.profileImage;
+        const id = contact._id;
+
+        const avatarLayout = imageUrl 
+            ? `<img src="${imageUrl}" class="avatar" alt="${name}">`
+            : `<div class="avatar">${name.charAt(0).toUpperCase()}</div>`;
 
         card.innerHTML = `
             <div>
                 <div class="contact-info">
                     ${avatarLayout}
                     <div class="details">
-                        <h4>${contact.name}</h4>
+                        <h4>${name}</h4>
                         <p>${contact.company ? `<i class="fa-solid fa-briefcase"></i> ${contact.company}` : ''}</p>
                     </div>
                 </div>
@@ -81,8 +151,8 @@ function renderContacts(contactsToRender) {
                 </div>
             </div>
             <div class="card-actions">
-                <button class="action-btn edit" data-id="${contact.id}"><i class="fa-solid fa-pen"></i></button>
-                <button class="action-btn delete" data-id="${contact.id}"><i class="fa-solid fa-trash"></i></button>
+                <button class="action-btn edit" data-id="${id}"><i class="fa-solid fa-pen"></i></button>
+                <button class="action-btn delete" data-id="${id}"><i class="fa-solid fa-trash"></i></button>
             </div>
         `;
         grid.appendChild(card);
@@ -93,25 +163,24 @@ function renderContacts(contactsToRender) {
 }
 
 function handleEdit(id) {
-    const target = contacts.find(c => c.id === id);
+    const target = contacts.find(c => c._id === id);
     if (!target) return;
 
     document.getElementById('modal-title').innerText = "Edit Contact";
-    document.getElementById('contact-id').value = target.id;
-    document.getElementById('contact-name').value = target.name;
+    document.getElementById('contact-id').value = target._id;
+    document.getElementById('contact-name').value = target.fullName;
     document.getElementById('contact-email').value = target.email;
     document.getElementById('contact-phone').value = target.phone;
     document.getElementById('contact-company').value = target.company || '';
-    document.getElementById('contact-image').value = target.imageUrl || '';
+    document.getElementById('contact-image').value = target.profileImage || '';
     
     clearErrors();
     document.getElementById('contact-modal').classList.remove('hidden');
 }
 
 function handleDelete(id) {
-    if (confirm("Are you certain you want to permanently delete this contact object?[cite: 1]")) {
-        const remaining = contacts.filter(c => c.id !== id);
-        saveContacts(remaining);
+    if (confirm("Are you sure you want to permanently delete this contact?")) {
+        deleteContactFromAPI(id);
     }
 }
 
@@ -124,8 +193,8 @@ function clearErrors() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    contacts = getContacts();
-    renderContacts(contacts);
+    // Fetch initial contacts from the API
+    fetchContacts();
 
     const modal = document.getElementById('contact-modal');
     const form = document.getElementById('contact-form');
@@ -146,19 +215,18 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('search-input').addEventListener('input', (e) => {
         const query = e.target.value.toLowerCase();
         const filtered = contacts.filter(c => 
-            c.name.toLowerCase().includes(query) ||
+            c.fullName.toLowerCase().includes(query) ||
             c.email.toLowerCase().includes(query) ||
             c.phone.includes(query)
         );
         renderContacts(filtered);
     });
 
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
         const id = document.getElementById('contact-id').value;
         const formData = {
-            id: id || Date.now().toString(),
             name: document.getElementById('contact-name').value,
             email: document.getElementById('contact-email').value,
             phone: document.getElementById('contact-phone').value,
@@ -168,14 +236,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!validateForm(formData)) return;
 
-        let updated;
         if (id) {
-            updated = contacts.map(c => c.id === id ? formData : c);
+            await updateContact(id, formData);
         } else {
-            updated = [...contacts, formData];
+            await addContact(formData);
         }
 
-        saveContacts(updated);
         closeModal();
     });
 });

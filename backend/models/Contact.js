@@ -1,35 +1,31 @@
-import mongoose from "mongoose";
+const mongoose = require('mongoose');
 
 const contactSchema = new mongoose.Schema({
   fullName: {
     type: String,
-    required: true,
-    trim: true,
+    required: [true, 'Full name is required'],
   },
-  email:{
+  email: {
     type: String,
-    required: true,
+    required: [true, 'Email is required'],
     unique: true,
-    trim: true,
     lowercase: true,
-  },
-  phone:{
-    type: String,
-    required: true,
-  },
-  company:{
-    type: String,
-    default: "",
     trim: true,
   },
-  profImgURL:{
+  phone: {
     type: String,
-    default: "",
+    required: [true, 'Phone number is required'],
   },
-  createdAt:{
-    type: Date,
-    default: Date.now,
+  company: {
+    type: String,
   },
+  profileImage: {
+    type: String,
+  }
+}, {
+  timestamps: true // Enables automatic createdAt and updatedAt
 });
 
-export default mongoose.model("Contact", contactSchema);
+const Contact = mongoose.model('Contact', contactSchema);
+
+module.exports = Contact;
